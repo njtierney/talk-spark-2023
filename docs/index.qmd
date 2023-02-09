@@ -1,0 +1,483 @@
+---
+title: "Extending and comparing methods for projecting social contact matrices"
+subtitle: "SPECTRUM & SPARK Annual Meeting"
+date: "15-02-2023"
+author: "Nicholas Tierney"
+institute: Telethon Kids Institute
+format: 
+  revealjs:
+    theme: [blood, extra.scss]
+    incremental: true
+    slide-number: true
+    show-slide-number: all
+    footer: "njtierney.github.io/talk-spark-spectrum-2023/"
+editor: visual
+execute: 
+  echo: false
+  warning: false
+  cache: true
+  freeze: true
+---
+
+```{r}
+#| label: library
+#| include: false
+library(tidyverse)
+library(knitr)
+library(conmat)
+library(colorspace)
+library(naniar)
+library(visdat)
+library(brolgar)
+library(icons)
+```
+
+```{r}
+#| label: source-r-files
+#| echo: false
+#| message: false
+#| output: false
+lapply(list.files(here::here("R"), full.names = TRUE), source)
+```
+
+```{r}
+#| label: helpers
+#| include: false
+
+icons_fa <- icons::fontawesome
+icon_box <- icon_style(icons_fa$solid$`box-open`, fill = "#f0a800")
+icon_link <- icon_style(icons_fa$solid$link, fill = "#f0a800")
+icon_twitter <- icon_style(icons_fa$brands$twitter, fill = "#f0a800")
+icon_github <- icon_style(icons_fa$brands$github, fill = "#f0a800")
+icon_plane <- icon_style(icons_fa$solid$`paper-plane`, fill = "#f0a800")
+
+
+as_table <- function(...) knitr::kable(..., format='html', digits = 3)
+
+theme_set(
+  theme_grey(base_size = 16) +
+  theme(
+    legend.position = "bottom",
+    plot.background = element_rect(fill = "transparent"),
+    legend.background = element_rect(fill = "transparent")
+  )
+)
+
+# **ni**ck's **pa**lette
+nipa <- list(red = "#c03018",
+             orange = "#f0a800",
+             green = "#609048",
+             purple = "#484878",
+             light_purple = "#A3A3BB",
+             light_green = "#AFC7A3",
+             light_orange = "#F7D37F",
+             light_red = "#DF978B",
+             pale_purple = "#ECECF1",
+             pale_green = "#D7E3D1",
+             pale_orange = "#FBE9BF",
+             pale_red = "#EFCBC4")
+
+```
+
+## What this talk is about
+
+- Discuss **why** we needed our own method + software design decisions
+
+- Touch on the **overall** approach for methods.
+
+- Initial results of Prem vs other countries
+
+## A (simple) contact matrix
+
+```{r}
+name_vec <- c("James", "Luke", "Nick")
+df_contact <- expand_grid(
+  name_from = name_vec,
+  name_to = name_vec
+) %>% 
+  mutate(
+    contact = as.logical(c(NA, 1, 0,
+                           1, NA, 0,
+                           0, 0, NA)),
+    contact_num = c(NA, 6, 0,
+                    6, NA, 0,
+                    0, 0, NA),
+    contact_num_age = c(10, 6, 0,
+                        6, 10, 0,
+                        0, 0, 10),
+    )
+
+```
+
+```{r}
+#| echo: false
+df_contact_ages <- df_contact %>% 
+  mutate(
+    across(
+      .cols = c(name_from, name_to),
+      .fns = ~case_when(
+        .x == "James" ~ "0-9",
+        .x == "Luke" ~ "10-19",
+        .x == "Nick" ~ "20-29",
+      )
+    )
+  ) %>% 
+  rename(
+    age_from = name_from,
+    age_to = name_to
+  )
+
+ggplot(df_contact_ages,
+       aes(x = age_from,
+           y = age_to,
+           fill = contact_num_age)) + 
+  geom_tile(colour = "black") +
+  scale_fill_continuous_sequential(palette = "Greens 2") +
+  theme_minimal(base_size = 18) +
+  labs(fill = "# Contacts") + 
+  theme(aspect.ratio = 1)
+```
+
+::: notes
+
+-   If we know how many times people have contact, we have an idea of which age groups will spread COVID
+
+-   Simulate how many COVID cases would get transmitted
+
+-   Explore how vaccination reduces transmission
+
+-   Do this for different areas in Australia
+
+:::
+
+## How much contact people have in Australia?
+
+-   **no existing surveys _in Australia_**
+
+-   POLYMOD study by [Mossong et al](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0050074) have this for 8 countries in Europe
+
+- We can create **synthetic contact matrices** from these empirical studies
+
+## Synthetic contact matrices
+
+-   Use survey data on settings: household, school, classroom, and workplace
+-   Combine empirical contact matrices and statistical methods to create new contact matrices.
+-   **Prem et al.** have one of the most widely used approaches to synthetic contact matrices
+-   Provided 177 contact matrices for 177 countries -
+-   **notably Australia and New Zealand were not included in the 2020 update**
+
+##  {background-image="images/prem-spreadsheet.png" background-size="contain"}
+
+::: notes
+**image of spreadsheet booklet of contact matrices**
+
+The main issue with this is that we don't have much control over the outputs.
+
+And maybe that doesn't matter to you if you just need to look at the contact matrices for a given country.
+
+But what we needed to do is get contact matrices for a given age population structure.
+:::
+
+## Limitations from Prem et al
+
+-  Although they provided [the code](https://github.com/kieshaprem/synthetic-contact-matrices):
+
+  - It was code not written for reuse (code vs software)
+    - No clear interface on how to get inputs for a given country or region.
+    - Challenging to see which bits of code matched which methods
+  - **Australia was in original 155 countries, not in the new updated 177!**
+
+## Need for software
+
+- Input age structured population information
+- Estimated contact matrix comes out
+- Tools for:
+    - Creating next generation matrices
+    - Apply vaccination
+    - SIR modelling
+
+## Demonstration of our extension: `conmat`
+
+```{r}
+#| echo: true
+#| label: get-fairfield
+library(conmat)
+fairfield <- abs_age_lga("Fairfield (C)")
+fairfield
+```
+
+## Extrapolate to a new population
+
+```{r}
+#| label: extrapolate-fairfield
+#| echo: true
+synthetic_fairfield <- extrapolate_polymod(
+ population = fairfield,
+ age_breaks = c(seq(0, 75, by = 5), Inf) # default
+)
+synthetic_fairfield
+```
+
+## Contact matrix: Fairfield
+
+```{r}
+#| label: plot-matrix-fairfield
+#| echo: true
+autoplot(synthetic_fairfield$home)
+```
+
+## Next Generation Matrix: Fairfield
+
+```{r}
+#| label: ngm-fairfield
+#| echo: true
+
+fairfield_ngm <- generate_ngm(
+  synthetic_fairfield,
+  age_breaks = c(seq(0, 75, by = 5), Inf),
+  R_target = 1.5
+)
+
+autoplot(fairfield_ngm) + 
+  labs(
+    subtitle = "The number of newly infected individuals for a specified age group in each setting"
+  )
+```
+
+
+# Thanks
+
+-   Nick Golding
+-   Aarathy Babu
+-   Michael Lydeamore
+
+# Learning more
+
+`r icon_box` [github.com/njtierney/conmat](https://github.com/njtierney/conmat)
+
+`r icon_link` [njtierney.github.io/talk-spark-2023](njtierney.github.io/talk-canterbury-2022)
+
+`r icon_twitter` nj_tierney
+
+`r icon_github` njtierney
+
+`r icon_plane` nicholas.tierney\@gmail.com
+
+# **End.**
+
+# Extras
+
+## How does the model work?
+
+```r
+fit_single_contact_model <- function(contact_data, population) {
+
+  # programatically add the offset term to the formula, so the model defines
+  # information about the setting, without us having to pass it through to the
+  # prediction data
+  formula_no_offset <- contacts ~
+    # deviation of contact age distribution from population age distribution
+    s(age_to) +
+    # number of contacts by age
+    s(age_from) +
+    # intergenerational contact patterns - enables the off-diagonals
+    s(abs(age_from - age_to)) +
+    # interaction between intergenerational patterns and age_from, to remove
+    # ridge for some ages and settings
+    s(abs(age_from - age_to), age_from) +
+    # probabilities of both attending (any) school/work
+    school_probability +
+    work_probability
+  
+  # choose the offset variable based on the setting
+  setting <- contact_data$setting[1]
+  offset_variable <- switch(
+    setting,
+    school = "log_contactable_population_school",
+    "log_contactable_population"
+  )
+  
+  # add multiplicative offset for population contactable, to enable
+  # extrapolation to new demographies
+  # in mgcv, this part of the offset gets used in prediction, which 
+  # is what we want. Those are the "contactable" parts, which we use
+  # to extrapolate to new demographics.
+  formula_offset <- sprintf("~. + offset(%s)", offset_variable)
+  formula <- update(formula_no_offset, formula_offset)
+  
+  # contact model for all locations together
+  contact_data %>%
+    add_modelling_features() %>%
+      # The modelling features added here are:
+        # the school and work offsets
+        # pop_age_to (interpolated population)
+        # `log_contactable_population_school`, and ` log_contactable_population`
+      population = population
+    mgcv::bam(
+      formula = formula,
+      family = stats::poisson,
+      # add number of participants as a multilpicative offset here rather than in
+      # the formula, so it is not needed for prediction,
+      # NOTE: the offset of participants allows us to get the rate per person
+      offset = log(participants),
+      data = .
+    )
+  
+}
+```
+
+
+## Create A Next Generation Matrix
+
+* Once infected, a person can transmit an infectious disease to another, creating **generations** of infected individuals. 
+* We can define a matrix describing the **number of newly infected** individuals in age groups, for consecutive generations. 
+* This matrix is called a **next generation matrix** (NGM).
+
+## Create A Next Generation Matrix
+
+```{r}
+#| label: generate-ngm-fairfield
+#| echo: true
+ngm_fairfield <- generate_ngm(
+  fairfield,
+  age_breaks = c(seq(0, 80, by = 5), Inf),
+  R_target = 1.5
+)
+ngm_fairfield
+```
+
+## Apply Vaccination
+
+* Applies the effect of vaccination on the next generation of infections, to understand and describe the reduction of acquisition and transmission in each age group.
+
+* Takes the following arguments:
+  - `ngm` - a Next Generation Matrix
+  - `data` - A data frame with location specifics
+  - which columns are related to "coverage", "acquisition", and "transmission" in the `data` col
+  
+## Example vaccination data
+  
+```{r}
+#| label: vaccination-example-data
+#| echo: true
+vaccination_effect_example_data
+```
+
+
+::: notes
+
+I think they are the average vaccine efficacy (expressed as 1 minus the relative risk) over all vaccinated individuals in the population. I.e. we calculate an average form the number of people in that age group that have 1 dose, 2 doses, which brand, how long ago, etc.
+
+::: 
+
+## Apply vaccination
+
+```{r}
+#| label: apply-vaccination-fairfield
+#| echo: true
+ngm_vacc_fairfield <- apply_vaccination(
+  ngm = ngm_fairfield,
+  data = vaccination_effect_example_data,
+  coverage_col = coverage,
+  acquisition_col = acquisition,
+  transmission_col = transmission
+)
+
+ngm_vacc_fairfield
+```
+
+
+## How does the model work?
+
+(simplified)
+
+```r
+mgcv::bam(
+  formula = contacts ~
+    # deviation of contact age distribution from population age distribution
+    s(age_to) +
+    # number of contacts by age
+    s(age_from) +
+    # intergenerational contact patterns - enables the off-diagonals
+    s(abs(age_from - age_to)) +
+    # interaction between intergenerational patterns and age_from, to remove
+    # ridge for some ages and settings
+    s(abs(age_from - age_to), age_from) +
+    # probabilities of both attending (any) school/work
+    school_probability +
+    work_probability +
+    offset(school_popn/work_popn),
+    family = stats::poisson,
+    # NOTE: the offset of participants allows us to get the rate per person
+    offset = log(participants)
+    )
+```
+
+
+
+## What we want
+
+- We want to be able use a **population age distribution** 
+
+```{r}
+#| label: fairfield
+#| echo: true
+fairfield <- abs_age_lga("Fairfield (C)")
+fairfield
+```
+
+
+## What we want
+
+- Input **population age distribution** and get out a contact matrix.
+
+```{r}
+#| eval: false
+#| echo: true
+
+extrapolate_from_data(
+  population = fairfield
+)
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+oz_pop <- abs_pop_age_lga_2020 %>%
+    select(
+      state,
+      age_group,
+      year,
+      population
+    ) %>%
+    mutate(age_group = readr::parse_number(as.character(age_group))) %>%
+    rename(lower.age.limit = age_group) %>%
+    group_by(year, lower.age.limit) %>%
+    summarise(population = sum(population)) %>% 
+  ungroup() %>% 
+  as_conmat_population(
+    age = lower.age.limit,
+    population = population
+  )
+```
+
+
+```{r}
+#| label: polymod-extrapolate
+synthetic_polymod_oz <- extrapolate_polymod(
+ population = oz_pop
+)
+```
+
+## Contact matrix: Australia
+
+```{r}
+#| label: plot-matrix-polymod
+#| echo: true
+autoplot(synthetic_polymod_oz$home)
+```
+
+
+# **This is the last slide.**
+
