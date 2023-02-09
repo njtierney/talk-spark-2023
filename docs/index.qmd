@@ -1,7 +1,8 @@
 ---
-title: "Extending and comparing methods for projecting social contact matrices"
+title: "**Extending** and **comparing** methods for synthetic social contact matrices"
 subtitle: "SPECTRUM & SPARK Annual Meeting"
-date: "15-02-2023"
+date: "2023/02/15"
+date-format: "D[th] MMM, YYYY"
 author: "Nicholas Tierney"
 institute: Telethon Kids Institute
 format: 
