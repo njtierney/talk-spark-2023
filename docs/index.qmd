@@ -31,6 +31,9 @@ library(naniar)
 library(visdat)
 library(brolgar)
 library(icons)
+library(gganimate)
+library(scales)
+library(ggrepel)
 ```
 
 ```{r}
@@ -80,15 +83,25 @@ nipa <- list(red = "#c03018",
 
 ```
 
-## What this talk is about
 
-- Discuss **why** we needed our own method + software design decisions
+## Some important things
 
-- Touch on the **overall** approach for methods.
+- Contact matrices can model infectious disease spread
 
-- Initial results of Prem vs other countries
+- **POLYMOD**: empirical contact data for 8 countries
 
-## A (simple) contact matrix
+- Prem et al extrapolated POLYMOD to 155 countries
+
+- Prem matrices were very widely adopted
+
+- Various improvements can be made to Prem et al
+
+- Prem's updated matrices: **Australia & NZ** not included
+
+- We needed **finer grained** Australian contact matrices
+
+
+## A contact matrix
 
 ```{r}
 name_vec <- c("James", "Luke", "Nick")
@@ -151,21 +164,6 @@ ggplot(df_contact_ages,
 
 :::
 
-## How much contact people have in Australia?
-
--   **no existing surveys _in Australia_**
-
--   POLYMOD study by [Mossong et al](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0050074) have this for 8 countries in Europe
-
-- We can create **synthetic contact matrices** from these empirical studies
-
-## Synthetic contact matrices
-
--   Use survey data on settings: household, school, classroom, and workplace
--   Combine empirical contact matrices and statistical methods to create new contact matrices.
--   **Prem et al.** have one of the most widely used approaches to synthetic contact matrices
--   Provided 177 contact matrices for 177 countries -
--   **notably Australia and New Zealand were not included in the 2020 update**
 
 ##  {background-image="images/prem-spreadsheet.png" background-size="contain"}
 
@@ -179,25 +177,16 @@ And maybe that doesn't matter to you if you just need to look at the contact mat
 But what we needed to do is get contact matrices for a given age population structure.
 :::
 
-## Limitations from Prem et al
+## We need an R package: `conmat`
 
--  Although they provided [the code](https://github.com/kieshaprem/synthetic-contact-matrices):
-
-  - It was code not written for reuse (code vs software)
-    - No clear interface on how to get inputs for a given country or region.
-    - Challenging to see which bits of code matched which methods
-  - **Australia was in original 155 countries, not in the new updated 177!**
-
-## Need for software
-
-- Input age structured population information
-- Estimated contact matrix comes out
+- Input: age structured population information
+- Output: synthetic contact matrix
 - Tools for:
     - Creating next generation matrices
     - Apply vaccination
     - SIR modelling
 
-## Demonstration of our extension: `conmat`
+## Use age population data
 
 ```{r}
 #| echo: true
@@ -207,7 +196,7 @@ fairfield <- abs_age_lga("Fairfield (C)")
 fairfield
 ```
 
-## Extrapolate to a new population
+## Extrapolate
 
 ```{r}
 #| label: extrapolate-fairfield
@@ -219,15 +208,55 @@ synthetic_fairfield <- extrapolate_polymod(
 synthetic_fairfield
 ```
 
-## Contact matrix: Fairfield
+- Train a GAM predicting **contact rate** on POLYMOD data
+
+- Simplified:
+
+:::: {.columns}
+
+::: {.column width="50%"}
+```r
+model <- mgcv::bam(
+  contact ~ age_diagonal + 
+     age_offdiagonal + 
+     ... + 
+     school probability + 
+     work probability
+  )
+```
+:::
+
+::: {.column width="50%"}
+```r
+extrapolated <- predict(
+  data = fairfield, 
+  model = model
+  )
+```
+:::
+
+::::
+
+
+
+## Predicted Contact matrix: home
 
 ```{r}
-#| label: plot-matrix-fairfield
+#| label: plot-matrix-fairfield-home
 #| echo: true
 autoplot(synthetic_fairfield$home)
 ```
 
-## Next Generation Matrix: Fairfield
+
+## Predicted Contact matrix: all
+
+```{r}
+#| label: plot-matrix-fairfield
+#| echo: true
+autoplot(synthetic_fairfield)
+```
+
+## Next Generation Matrix
 
 ```{r}
 #| label: ngm-fairfield
@@ -239,10 +268,251 @@ fairfield_ngm <- generate_ngm(
   R_target = 1.5
 )
 
-autoplot(fairfield_ngm) + 
-  labs(
-    subtitle = "The number of newly infected individuals for a specified age group in each setting"
+autoplot(fairfield_ngm$home)
+```
+
+# Some results: SIR Modelling: Ours vs Prem
+
+```{r}
+#| label: build-SIR
+#| echo: FALSE
+#| message: FALSE
+library(deSolve)
+world_data <- socialmixr::wpp_age() %>%
+  mutate(
+    new_lower_age = if_else(lower.age.limit >= 75, 75L, lower.age.limit)
+  ) %>%
+  as_tibble() %>% 
+  summarise(
+    population = sum(population),
+    .by = c(new_lower_age, country, year)
   )
+
+germany_2015 <- age_population(
+  data = world_data,
+  location_col = country,
+  location = "Germany",
+  age_col = new_lower_age,
+  year_col = year,
+  year = 2015
+)
+
+# germany_2015
+
+age_breaks_socialmixr <- c(seq(0, 75, by = 5), Inf)
+
+germany_contacts <- extrapolate_polymod(
+  population = germany_2015,
+  age_breaks = age_breaks_socialmixr
+)
+
+n_finite_states <- length(age_breaks_socialmixr) - 1
+socialmixr_matrix <- matrix(0.1761765, 
+                            nrow = n_finite_states, 
+                            ncol = n_finite_states)
+
+transmission_matrix <- transmission_probability_matrix(
+  home = socialmixr_matrix,
+  work = socialmixr_matrix,
+  school = socialmixr_matrix,
+  other = socialmixr_matrix,
+  age_breaks = age_breaks_socialmixr
+)
+
+parameters <- list(
+  "transmission_matrix" = transmission_matrix,
+  "homogeneous_contact" = germany_contacts,
+  "gamma" = 1,
+  "s_indexes" = 1:n_finite_states,
+  "i_indexes" = (n_finite_states + 1):(2 * n_finite_states),
+  "r_indexes" = (2 * n_finite_states + 1):(3 * n_finite_states)
+)
+
+S0 <- germany_2015$population
+I0 <- rep(1, times = n_finite_states)
+R0 <- rep(0, times = n_finite_states)
+initial_condition <- c(S0, I0, R0)
+names(initial_condition) <- paste(
+  rep(c("S0", "I0", "R0"), each = n_finite_states),
+  age_breaks_socialmixr[1:n_finite_states],
+  sep = "_"
+)
+
+age_structured_sir <- function(time, state, parameters) {
+  # Calculate the force of infection for each setting:
+  # unstructured SIR beta is age_group_n / pop_n
+
+  N_by_age <- map_dbl(
+    .x = parameters$s_indexes,
+    .f = function(i) {
+      current_indexes_to_sum <- c(
+        parameters$s_indexes[i],
+        parameters$i_indexes[i],
+        parameters$r_indexes[i]
+      )
+      sum(state[current_indexes_to_sum])
+    }
+  )
+
+  # normalise by the age population
+  N_infected_by_age <- state[parameters$i_indexes] / N_by_age
+
+  # functional method for takign the product of two matrices
+  product <- function(transmission, contact) {
+    map2(transmission, contact, `*`)
+  }
+
+  age_normalise <- function(beta) {
+    # matrix multiply by infected and normalise by age population
+    map(beta, function(beta) {
+      beta %*% N_infected_by_age
+    })
+  }
+
+  lambdas <- tibble(
+    setting = names(parameters$transmission_matrix),
+    transmission_matrix = parameters$transmission_matrix,
+    homogeneous_contact = parameters$homogeneous_contact[1:4]
+  ) %>%
+    mutate(
+      beta = product(transmission_matrix, homogeneous_contact),
+      lambda = age_normalise(beta)
+    )
+
+  # Combine them all into one term for ease of computation
+  lambda_total <- Reduce("+", lambdas$lambda)
+
+  # Don't forget to normalise your infection rate by the population!
+  dSdt <- -lambda_total * state[parameters$s_indexes]
+
+  dIdt <- lambda_total * state[parameters$s_indexes] -
+    parameters$gamma * state[parameters$i_indexes]
+
+  dRdt <- parameters$gamma * state[parameters$i_indexes]
+
+  return(
+    list(
+      c(
+        dSdt,
+        dIdt,
+        dRdt
+      )
+    )
+  )
+}
+
+times <- seq(0, 100, by = 0.1)
+germany_soln <- ode(
+  y = initial_condition,
+  times = times,
+  func = age_structured_sir,
+  parms = parameters
+)
+
+# Have to convert ode output to a data frame to do any plotting
+germany_soln <- as_tibble(as.data.frame(germany_soln))
+
+# head(germany_soln)
+# tail(germany_soln)
+
+# we are going to tidy up ODE output a few times, so wrap it into a function:
+tidy_ode <- function(ode_soln) {
+  ode_soln %>%
+    pivot_longer(cols = -time) %>%
+    mutate(parent_state = substr(name, 1, 1)) %>%
+    # group_by(time, parent_state) %>%
+    summarise(value = sum(value),
+              .by = c(time, parent_state)) %>%
+    ungroup() %>%
+    rename(name = parent_state)
+}
+
+germany_soln_long <- germany_soln %>%
+  tidy_ode() %>%
+  mutate(type = "age_structured")
+
+# germany_soln_long
+
+gg_germany_sir <- ggplot(
+  germany_soln_long,
+  aes(x = time, y = value / sum(initial_condition), colour = name)
+) +
+  geom_line() +
+  labs(x = "Time", 
+       y = "Proportion",
+       colour = "Compartment") 
+
+gg_germany_sir
+
+# So we go through a similar process, setting up parameters, and solving the ODE for Prem
+
+parameters_prem <- list(
+  "transmission_matrix" = transmission_matrix,
+  "homogeneous_contact" = prem_germany_contact_matrices,
+  "gamma" = 1,
+  "s_indexes" = 1:n_finite_states,
+  "i_indexes" = (n_finite_states + 1):(2 * n_finite_states),
+  "r_indexes" = (2 * n_finite_states + 1):(3 * n_finite_states)
+)
+
+prem_soln <- ode(
+  y = initial_condition,
+  times = times,
+  func = age_structured_sir,
+  parms = parameters_prem
+)
+
+# Have to convert ode output to a data frame to do any plotting
+prem_soln <- as_tibble(as.data.frame(prem_soln))
+
+# tail(prem_soln)
+
+germany_aggregated <- tidy_ode(germany_soln)
+
+# For the stratified model, we have to add up all the age categories together for a fair comparison.
+prem_aggregated <- tidy_ode(prem_soln)
+
+conmat_prem_soln <- bind_rows(
+  conmat = germany_aggregated,
+  prem = prem_aggregated,
+  .id = "type"
+) %>%
+  mutate(name = factor(name, levels = c("S", "I", "R")))
+
+# head(conmat_prem_soln)
+# tail(conmat_prem_soln)
+
+# # conmat_prem_soln
+# 
+conmat_prem_soln_40 <- conmat_prem_soln %>%  filter(time <= 40)
+
+ggplot(conmat_prem_soln_40,
+       aes(x = time, y = value, colour = type)) +
+  geom_line() +
+  labs(x = "Time", y = "Value", colour = "Model") +
+  facet_wrap(~name, ncol = 1) +
+  scale_y_continuous(
+  labels = scales::label_number(scale_cut = scales::cut_si("")),
+  n.breaks = 3
+  )
+```
+
+```{r}
+
+# 
+# ggplot(conmat_prem_soln_40,
+#        aes(x = time, y = value, colour = type)) +
+#   geom_line() +
+#   geom_point() +
+#   geom_label_repel(
+#     data = filter(conmat_prem_soln_40, time == 1),
+#              aes(label = type)) +
+#   labs(x = "Time", y = "Value", colour = "Model") +
+#   facet_wrap(~name, ncol = 1) + 
+#   scale_y_continuous(labels = label_number_si(),
+#                      n.breaks = 3) + 
+#   theme(legend.position = "none") +
+#   transition_reveal(along = time)
 ```
 
 
@@ -395,22 +665,25 @@ ngm_vacc_fairfield
 ```r
 mgcv::bam(
   formula = contacts ~
-    # deviation of contact age distribution from population age distribution
-    s(age_to) +
-    # number of contacts by age
-    s(age_from) +
-    # intergenerational contact patterns - enables the off-diagonals
-    s(abs(age_from - age_to)) +
-    # interaction between intergenerational patterns and age_from, to remove
-    # ridge for some ages and settings
-    s(abs(age_from - age_to), age_from) +
-    # probabilities of both attending (any) school/work
-    school_probability +
-    work_probability +
-    offset(school_popn/work_popn),
+      # Prem method did a post-hoc smoothing
+      # abs(age_from - age_to)
+      s(gam_age_offdiag) +
+      # abs(age_from - age_to)^2
+      s(gam_age_offdiag_2) +
+      # abs(age_from * age_to)
+      s(gam_age_diag_prod) +
+      # abs(age_from + age_to)
+      s(gam_age_diag_sum) +
+      # pmax(age_from, age_to)
+      s(gam_age_pmax) +
+      # pmin(age_from, age_to)
+      s(gam_age_pmin) +
+      school_probability +
+      work_probability,
     family = stats::poisson,
     # NOTE: the offset of participants allows us to get the rate per person
-    offset = log(participants)
+    offset = log(participants),
+    data = .
     )
 ```
 
@@ -479,6 +752,32 @@ synthetic_polymod_oz <- extrapolate_polymod(
 autoplot(synthetic_polymod_oz$home)
 ```
 
+## Synthetic contact matrices
+
+-   Use survey data on settings: household, school, classroom, and workplace
+-   Combine empirical contact matrices and statistical methods to create new contact matrices.
+-   **Prem et al.** have one of the most widely used approaches to synthetic contact matrices
+-   Provided 177 contact matrices for 177 countries -
+-   **notably Australia and New Zealand were not included in the 2020 update**
+
+
+## How much contact people have in Australia?
+
+-   **no existing surveys _in Australia_**
+
+-   POLYMOD study by [Mossong et al](https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.0050074) have this for 8 countries in Europe
+
+- We can create **synthetic contact matrices** from these empirical studies
+
+
+## Prem et al Limitations
+
+-  Although they provided [the code](https://github.com/kieshaprem/synthetic-contact-matrices):
+
+  - It was code not written for reuse (code vs software)
+    - No interface on getting matrix for a specified region.
+    - Unclear which code matched which methods
+  - **Australia was in original 155 countries, not in the new updated 177!**
 
 # **This is the last slide.**
 
