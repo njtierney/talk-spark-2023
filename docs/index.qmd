@@ -7,11 +7,12 @@ author: "Nicholas Tierney"
 institute: Telethon Kids Institute
 format: 
   revealjs:
-    theme: [blood, extra.scss]
+    theme: [simple, extra.scss]
     incremental: true
-    slide-number: true
-    show-slide-number: all
+    slide-number: c
     footer: "njtierney.github.io/talk-spark-spectrum-2023/"
+    chalkboard: true
+    logo: tki-logo.jpeg
 editor: visual
 execute: 
   echo: false
@@ -176,7 +177,6 @@ plot_two_abs_distributions(alice_syd)
 -   We need contact matrices for **specific parts** of Australia
 -   Current best estimates are for **all of** Australia
 -   We need our own approach
--   We need an R package
 
 ::: notes
 -   **POLYMOD**: empirical contact data for 8 countries
@@ -201,7 +201,7 @@ plot_two_abs_distributions(alice_syd)
     -   Apply vaccination
     -   Perform SIR modelling
 
-## age population data
+## Age population data
 
 ```{r}
 #| echo: true
@@ -253,14 +253,16 @@ autoplot(synthetic_fairfield$home)
 #| label: ngm-fairfield
 #| echo: true
 
-fairfield_ngm <- generate_ngm(
-  synthetic_fairfield,
-  age_breaks = c(seq(0, 75, by = 5), Inf),
-  R_target = 1.5
-)
+fairfield_ngm <- generate_ngm(synthetic_fairfield,
+                              age_breaks = age_0_75 <- c(seq(0, 75, 5), Inf),
+                              R_target = 1.5)
+```
 
+```{r}
 autoplot(fairfield_ngm$home)
 ```
+
+
 
 # But is it different to Prem?
 
@@ -538,7 +540,7 @@ animate(
 conmat_static_plot
 ```
 
-## ...Yes (more work to be done)
+## ...Yes (but we need to look further)
 
 ```{r}
 #| label: show-static-conmat-plot2
