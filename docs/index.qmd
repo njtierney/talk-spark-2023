@@ -10,6 +10,7 @@ format:
     theme: [simple, extra.scss]
     incremental: true
     slide-number: c
+    show-slide-number: all
     footer: "njtierney.github.io/talk-spark-spectrum-2023/"
     chalkboard: true
     logo: tki-logo.jpeg
@@ -28,9 +29,6 @@ library(tidyverse)
 library(knitr)
 library(conmat)
 library(colorspace)
-library(naniar)
-library(visdat)
-library(brolgar)
 library(icons)
 library(gganimate)
 library(scales)
@@ -42,6 +40,7 @@ library(ggtext)
 #| echo: false
 #| message: false
 #| output: false
+#| cache: false
 lapply(list.files(here::here("R"), full.names = TRUE), source)
 ```
 
@@ -58,9 +57,6 @@ icon_link <- icon_style(icons_fa$solid$link, fill = "#f0a800")
 # icon_twitter <- icon_style(icons_fa$brands$twitter, fill = "#f0a800")
 icon_github <- icon_style(icons_fa$brands$github, fill = "#f0a800")
 icon_plane <- icon_style(icons_fa$solid$`paper-plane`, fill = "#f0a800")
-
-
-as_table <- function(...) knitr::kable(..., format='html', digits = 3)
 
 theme_set(
   theme_grey(base_size = 16) +
@@ -149,7 +145,13 @@ ggplot(df_contact_ages,
 -   Do this for different areas in Australia
 :::
 
-##  {background-image="images/prem-spreadsheet.png" background-size="contain"}
+## Mossong et al (**POLYMOD**)
+
+![](images/mossong-combined.png)
+
+## **Prem** et al - Synthetic Contact Matrices
+
+![](images/prem-spreadsheet.png){background-size="contain"}
 
 ::: notes
 **image of spreadsheet booklet of contact matrices**
@@ -173,7 +175,7 @@ plot_two_abs_distributions(alice_syd)
 
 ## Key points
 
--   Contact matrices can model infectious disease spread
+-   **Contact matrices** can model infectious disease spread
 -   We need contact matrices for **specific parts** of Australia
 -   Current best estimates are for **all of** Australia
 -   We need our own approach
@@ -194,12 +196,12 @@ plot_two_abs_distributions(alice_syd)
 
 ## We need an R package: `conmat`
 
--   **Input**: age and population data
+-   **Input**: age population data
 -   **Output**: synthetic contact matrix
--   Tools to:
+-   Provide tools to:
     -   Create next generation matrices
     -   Apply vaccination
-    -   Perform SIR modelling
+    -   Use these in SIR modelling
 
 ## Age population data
 
@@ -211,7 +213,7 @@ fairfield <- abs_age_lga("Fairfield (C)")
 fairfield
 ```
 
-## Extrapolate our data
+## Predict (extrapolate) a new contact matrix
 
 ```{r}
 #| echo: true
@@ -252,19 +254,44 @@ autoplot(synthetic_fairfield$home)
 ```{r}
 #| label: ngm-fairfield
 #| echo: true
+fairfield_ngm <- generate_ngm(
+  synthetic_fairfield,
+  age_breaks = c(seq(0, 75, 5), Inf),
+  R_target = 1.5
+  )
 
-fairfield_ngm <- generate_ngm(synthetic_fairfield,
-                              age_breaks = age_0_75 <- c(seq(0, 75, 5), Inf),
-                              R_target = 1.5)
+fairfield_ngm
 ```
 
+```
+── NGM Setting Matrices ──────────────────
+
+A list of matrices, each <matrix>
+containing the number of newly infected
+individuals for a specified age group.
+
+• home: a 16x16 <matrix>
+• school: a 16x16 <matrix>
+• work: a 16x16 <matrix>
+• other: a 16x16 <matrix>
+• all: a 16x16 <matrix>
+ℹ Access each <matrix> with `x$name`
+ℹ e.g., `x$home`
+```
+
+## Next Generation Matrix
+
 ```{r}
+#| label: ngm-fairfield-plot
+#| echo: true
 autoplot(fairfield_ngm$home)
 ```
 
-
-
 # But is it different to Prem?
+
+- Compare our contact matrix to Prem's contact matrix
+- In a Suscepible, Infected, Recovered (SIR) model
+- For say, Germany?
 
 ## ...Wait for it
 
@@ -333,69 +360,6 @@ names(initial_condition) <- paste(
   sep = "_"
 )
 
-age_structured_sir <- function(time, state, parameters) {
-  # Calculate the force of infection for each setting:
-  # unstructured SIR beta is age_group_n / pop_n
-
-  N_by_age <- map_dbl(
-    .x = parameters$s_indexes,
-    .f = function(i) {
-      current_indexes_to_sum <- c(
-        parameters$s_indexes[i],
-        parameters$i_indexes[i],
-        parameters$r_indexes[i]
-      )
-      sum(state[current_indexes_to_sum])
-    }
-  )
-
-  # normalise by the age population
-  N_infected_by_age <- state[parameters$i_indexes] / N_by_age
-
-  # functional method for takign the product of two matrices
-  product <- function(transmission, contact) {
-    map2(transmission, contact, `*`)
-  }
-
-  age_normalise <- function(beta) {
-    # matrix multiply by infected and normalise by age population
-    map(beta, function(beta) {
-      beta %*% N_infected_by_age
-    })
-  }
-
-  lambdas <- tibble(
-    setting = names(parameters$transmission_matrix),
-    transmission_matrix = parameters$transmission_matrix,
-    homogeneous_contact = parameters$homogeneous_contact[1:4]
-  ) %>%
-    mutate(
-      beta = product(transmission_matrix, homogeneous_contact),
-      lambda = age_normalise(beta)
-    )
-
-  # Combine them all into one term for ease of computation
-  lambda_total <- Reduce("+", lambdas$lambda)
-
-  # Don't forget to normalise your infection rate by the population!
-  dSdt <- -lambda_total * state[parameters$s_indexes]
-
-  dIdt <- lambda_total * state[parameters$s_indexes] -
-    parameters$gamma * state[parameters$i_indexes]
-
-  dRdt <- parameters$gamma * state[parameters$i_indexes]
-
-  return(
-    list(
-      c(
-        dSdt,
-        dIdt,
-        dRdt
-      )
-    )
-  )
-}
-
 times <- seq(0, 100, by = 0.1)
 germany_soln <- ode(
   y = initial_condition,
@@ -409,18 +373,6 @@ germany_soln <- as_tibble(as.data.frame(germany_soln))
 
 # head(germany_soln)
 # tail(germany_soln)
-
-# we are going to tidy up ODE output a few times, so wrap it into a function:
-tidy_ode <- function(ode_soln) {
-  ode_soln %>%
-    pivot_longer(cols = -time) %>%
-    mutate(parent_state = substr(name, 1, 1)) %>%
-    # group_by(time, parent_state) %>%
-    summarise(value = sum(value),
-              .by = c(time, parent_state)) %>%
-    ungroup() %>%
-    rename(name = parent_state)
-}
 
 germany_soln_long <- germany_soln %>%
   tidy_ode() %>%
@@ -486,8 +438,7 @@ conmat_prem_soln_40 <- conmat_prem_soln %>%  filter(time <= 40)
 #| label: static-plot
 conmat_static_plot <- ggplot(conmat_prem_soln_40,
        aes(x = time, y = value, colour = type)) +
-  geom_line() +
-  geom_point(data = filter(conmat_prem_soln_40, time == 40)) +
+  geom_line(linewidth = 1.5) +
   facet_wrap(~name, 
              ncol = 1,
              labeller = labeller(
@@ -522,13 +473,19 @@ conmat_static_plot <- ggplot(conmat_prem_soln_40,
 ```{r}
 #| label: conmat-prem-animated
 conmat_prem_ani <- conmat_static_plot +
-  geom_point() +
+  geom_point(size = 2) +
   transition_reveal(along = time) 
-
 
 animate(
   plot = conmat_prem_ani,
-  end_pause = 20
+  start_pause = 15,
+  end_pause = 20,
+  fps = 20,
+  res = 100,
+  duration = 6,
+  width = 1050,
+  height = 525,
+  units = "px"
 )
 
 ```
@@ -537,14 +494,18 @@ animate(
 
 ```{r}
 #| label: show-static-conmat-plot
-conmat_static_plot
+conmat_static_plot +
+  geom_point(data = filter(conmat_prem_soln_40, time == 40),
+             size = 2)
 ```
 
 ## ...Yes (but we need to look further)
 
 ```{r}
 #| label: show-static-conmat-plot2
-conmat_static_plot
+conmat_static_plot + 
+  geom_point(data = filter(conmat_prem_soln_40, time == 40),
+             size = 2)
 ```
 
 # Thanks
@@ -552,6 +513,7 @@ conmat_static_plot
 -   Nick Golding
 -   Aarathy Babu
 -   Michael Lydeamore
+-   Spark Spectrum Seed Funding
 
 # Learning more
 
@@ -573,24 +535,23 @@ conmat_static_plot
 
 # Extras
 
-## Create A Next Generation Matrix
+## {background-image="https://imgs.xkcd.com/comics/code_lifespan_2x.png" background-size="auto"}
+
+## Next Generation Matrices
 
 -   Once infected, a person can transmit an infectious disease to another, creating **generations** of infected individuals.
 -   We can define a matrix describing the **number of newly infected** individuals in age groups, for consecutive generations.
 -   This matrix is called a **next generation matrix** (NGM).
 
-## Create A Next Generation Matrix
-
 ```{r}
-#| label: generate-ngm-fairfield
-#| echo: true
+#| label: ngm-fairfield-again
 ngm_fairfield <- generate_ngm(
   fairfield,
   age_breaks = c(seq(0, 80, by = 5), Inf),
   R_target = 1.5
 )
-ngm_fairfield
 ```
+
 
 ## Apply Vaccination
 
@@ -628,6 +589,24 @@ ngm_vacc_fairfield <- apply_vaccination(
 )
 
 ngm_vacc_fairfield
+```
+
+```
+── Vaccination Setting Matrices ──────────
+
+A list of matrices, each <matrix>
+containing the adjusted number of newly
+infected individuals for age groups.
+These numbers have been adjusted based on
+proposed vaccination rates in age groups
+
+• home: a 17x17 <matrix>
+• school: a 17x17 <matrix>
+• work: a 17x17 <matrix>
+• other: a 17x17 <matrix>
+• all: a 17x17 <matrix>
+ℹ Access each <matrix> with `x$name`
+ℹ e.g., `x$home`
 ```
 
 ## How does the model work?

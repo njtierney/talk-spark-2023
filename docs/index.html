@@ -408,7 +408,7 @@ Nicholas Tierney
 </section>
 <section class="slide level2">
 
-<div class="cell" data-hash="index_cache/revealjs/source-r-files_007217fbdc42c4696e6e8145a89687ff">
+<div class="cell">
 
 </div>
 </section>
@@ -437,9 +437,14 @@ Nicholas Tierney
           display:block!important;
       }</style></aside>
 </section>
-<section id="section" class="slide level2" data-background-image="images/prem-spreadsheet.png" data-background-size="contain">
-<h2></h2>
-<aside class="notes">
+<section id="mossong-et-al-polymod" class="slide level2">
+<h2>Mossong et al (<strong>POLYMOD</strong>)</h2>
+
+<img data-src="images/mossong-combined.png" class="r-stretch"></section>
+<section id="prem-et-al---synthetic-contact-matrices" class="slide level2">
+<h2><strong>Prem</strong> et al - Synthetic Contact Matrices</h2>
+
+<img data-src="images/prem-spreadsheet.png" data-background-size="contain" class="r-stretch"><aside class="notes">
 <p><strong>image of spreadsheet booklet of contact matrices</strong></p>
 <p>The main issue with this is that we don’t have much control over the outputs.</p>
 <p>And maybe that doesn’t matter to you if you just need to look at the contact matrices for a given country.</p>
@@ -463,7 +468,7 @@ Nicholas Tierney
 <section id="key-points" class="slide level2">
 <h2>Key points</h2>
 <ul>
-<li class="fragment">Contact matrices can model infectious disease spread</li>
+<li class="fragment"><strong>Contact matrices</strong> can model infectious disease spread</li>
 <li class="fragment">We need contact matrices for <strong>specific parts</strong> of Australia</li>
 <li class="fragment">Current best estimates are for <strong>all of</strong> Australia</li>
 <li class="fragment">We need our own approach</li>
@@ -492,13 +497,13 @@ Nicholas Tierney
 <section id="we-need-an-r-package-conmat" class="slide level2">
 <h2>We need an R package: <code>conmat</code></h2>
 <ul>
-<li class="fragment"><strong>Input</strong>: age and population data</li>
+<li class="fragment"><strong>Input</strong>: age population data</li>
 <li class="fragment"><strong>Output</strong>: synthetic contact matrix</li>
-<li class="fragment">Tools to:
+<li class="fragment">Provide tools to:
 <ul>
 <li class="fragment">Create next generation matrices</li>
 <li class="fragment">Apply vaccination</li>
-<li class="fragment">Perform SIR modelling</li>
+<li class="fragment">Use these in SIR modelling</li>
 </ul></li>
 </ul>
 </section>
@@ -535,8 +540,8 @@ Nicholas Tierney
 </div>
 </div>
 </section>
-<section id="extrapolate-our-data" class="slide level2">
-<h2>Extrapolate our data</h2>
+<section id="predict-extrapolate-a-new-contact-matrix" class="slide level2">
+<h2>Predict (extrapolate) a new contact matrix</h2>
 <div class="cell" data-hash="index_cache/revealjs/extrapolate-fairfield_10055d8147a76d0707feb20cc637c63c">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>synthetic_fairfield <span class="ot">&lt;-</span> <span class="fu">extrapolate_polymod</span>(</span>
 <span id="cb3-2"><a href="#cb3-2"></a> <span class="at">population =</span> fairfield,</span>
@@ -568,24 +573,51 @@ each setting.
 <img data-src="index_files/figure-revealjs/plot-matrix-fairfield-home-1.png" width="960" class="r-stretch"></section>
 <section id="next-generation-matrix" class="slide level2">
 <h2>Next Generation Matrix</h2>
-<div class="cell" data-hash="index_cache/revealjs/ngm-fairfield_a303377c0e2a1560e3d0e224e23573a6">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>fairfield_ngm <span class="ot">&lt;-</span> <span class="fu">generate_ngm</span>(synthetic_fairfield,</span>
-<span id="cb6-2"><a href="#cb6-2"></a>                              <span class="at">age_breaks =</span> age_0_75 <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">75</span>, <span class="dv">5</span>), <span class="cn">Inf</span>),</span>
-<span id="cb6-3"><a href="#cb6-3"></a>                              <span class="at">R_target =</span> <span class="fl">1.5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-hash="index_cache/revealjs/ngm-fairfield_2304cb481e5f6f43a209a0c48e1366c3">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a>fairfield_ngm <span class="ot">&lt;-</span> <span class="fu">generate_ngm</span>(</span>
+<span id="cb6-2"><a href="#cb6-2"></a>  synthetic_fairfield,</span>
+<span id="cb6-3"><a href="#cb6-3"></a>  <span class="at">age_breaks =</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">75</span>, <span class="dv">5</span>), <span class="cn">Inf</span>),</span>
+<span id="cb6-4"><a href="#cb6-4"></a>  <span class="at">R_target =</span> <span class="fl">1.5</span></span>
+<span id="cb6-5"><a href="#cb6-5"></a>  )</span>
+<span id="cb6-6"><a href="#cb6-6"></a></span>
+<span id="cb6-7"><a href="#cb6-7"></a>fairfield_ngm</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<pre><code>── NGM Setting Matrices ──────────────────
 
-<img data-src="index_files/figure-revealjs/unnamed-chunk-11-1.png" width="960" class="r-stretch"></section>
+A list of matrices, each &lt;matrix&gt;
+containing the number of newly infected
+individuals for a specified age group.
+
+• home: a 16x16 &lt;matrix&gt;
+• school: a 16x16 &lt;matrix&gt;
+• work: a 16x16 &lt;matrix&gt;
+• other: a 16x16 &lt;matrix&gt;
+• all: a 16x16 &lt;matrix&gt;
+ℹ Access each &lt;matrix&gt; with `x$name`
+ℹ e.g., `x$home`</code></pre>
+</section>
+<section id="next-generation-matrix-1" class="slide level2">
+<h2>Next Generation Matrix</h2>
+<div class="cell" data-hash="index_cache/revealjs/ngm-fairfield-plot_6f4c9dcb7dadab4250d2f5cd4dc462f4">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a><span class="fu">autoplot</span>(fairfield_ngm<span class="sc">$</span>home)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+
+</div>
+<img data-src="index_files/figure-revealjs/ngm-fairfield-plot-1.png" width="960" class="r-stretch"></section>
 <section>
 <section id="but-is-it-different-to-prem" class="title-slide slide level1 center">
 <h1>But is it different to Prem?</h1>
-
+<ul>
+<li class="fragment">Compare our contact matrix to Prem’s contact matrix</li>
+<li class="fragment">In a Suscepible, Infected, Recovered (SIR) model</li>
+<li class="fragment">For say, Germany?</li>
+</ul>
 </section>
 <section id="wait-for-it" class="slide level2">
 <h2>…Wait for it</h2>
-<div class="cell" data-hash="index_cache/revealjs/build-SIR_c36320531f5ab5a9b7582a772b03a8d1">
+<div class="cell" data-hash="index_cache/revealjs/build-SIR_712963ae5654bb2c82632c62914e540c">
 
 </div>
-<div class="cell" data-hash="index_cache/revealjs/static-plot_57eff114bbce986fe14bb4748059717c">
+<div class="cell" data-hash="index_cache/revealjs/static-plot_e6ef3e3932a26349893b9dd295e007ef">
 
 </div>
 
@@ -604,6 +636,7 @@ each setting.
 <li class="fragment">Nick Golding</li>
 <li class="fragment">Aarathy Babu</li>
 <li class="fragment">Michael Lydeamore</li>
+<li class="fragment">Spark Spectrum Seed Funding</li>
 </ul>
 </section>
 
@@ -628,23 +661,18 @@ each setting.
 <h1>Extras</h1>
 
 </section>
-<section id="create-a-next-generation-matrix" class="slide level2">
-<h2>Create A Next Generation Matrix</h2>
+<section id="section" class="slide level2" data-background-image="https://imgs.xkcd.com/comics/code_lifespan_2x.png" data-background-size="auto">
+<h2></h2>
+</section>
+<section id="next-generation-matrices" class="slide level2">
+<h2>Next Generation Matrices</h2>
 <ul>
 <li class="fragment">Once infected, a person can transmit an infectious disease to another, creating <strong>generations</strong> of infected individuals.</li>
 <li class="fragment">We can define a matrix describing the <strong>number of newly infected</strong> individuals in age groups, for consecutive generations.</li>
 <li class="fragment">This matrix is called a <strong>next generation matrix</strong> (NGM).</li>
 </ul>
-</section>
-<section id="create-a-next-generation-matrix-1" class="slide level2">
-<h2>Create A Next Generation Matrix</h2>
-<div class="cell" data-hash="index_cache/revealjs/generate-ngm-fairfield_979162c5bddcaae411aa7bd60d90b619">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a>ngm_fairfield <span class="ot">&lt;-</span> <span class="fu">generate_ngm</span>(</span>
-<span id="cb7-2"><a href="#cb7-2"></a>  fairfield,</span>
-<span id="cb7-3"><a href="#cb7-3"></a>  <span class="at">age_breaks =</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">0</span>, <span class="dv">80</span>, <span class="at">by =</span> <span class="dv">5</span>), <span class="cn">Inf</span>),</span>
-<span id="cb7-4"><a href="#cb7-4"></a>  <span class="at">R_target =</span> <span class="fl">1.5</span></span>
-<span id="cb7-5"><a href="#cb7-5"></a>)</span>
-<span id="cb7-6"><a href="#cb7-6"></a>ngm_fairfield</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell" data-hash="index_cache/revealjs/ngm-fairfield-again_0f7bede7a2b5886810fe37c9eb83c343">
+
 </div>
 </section>
 <section id="apply-vaccination" class="slide level2">
@@ -662,7 +690,7 @@ each setting.
 <section id="example-vaccination-data" class="slide level2">
 <h2>Example vaccination data</h2>
 <div class="cell" data-hash="index_cache/revealjs/vaccination-example-data_547aa4b1d159906f674a9d9155a42fd0">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a>vaccination_effect_example_data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a>vaccination_effect_example_data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 17 × 4
    age_band coverage acquisition transmission
@@ -703,16 +731,31 @@ each setting.
 <section id="apply-vaccination-1" class="slide level2">
 <h2>Apply vaccination</h2>
 <div class="cell" data-hash="index_cache/revealjs/apply-vaccination-fairfield_5e35bfd32700a74e931ef1619096c604">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a>ngm_vacc_fairfield <span class="ot">&lt;-</span> <span class="fu">apply_vaccination</span>(</span>
-<span id="cb10-2"><a href="#cb10-2"></a>  <span class="at">ngm =</span> ngm_fairfield,</span>
-<span id="cb10-3"><a href="#cb10-3"></a>  <span class="at">data =</span> vaccination_effect_example_data,</span>
-<span id="cb10-4"><a href="#cb10-4"></a>  <span class="at">coverage_col =</span> coverage,</span>
-<span id="cb10-5"><a href="#cb10-5"></a>  <span class="at">acquisition_col =</span> acquisition,</span>
-<span id="cb10-6"><a href="#cb10-6"></a>  <span class="at">transmission_col =</span> transmission</span>
-<span id="cb10-7"><a href="#cb10-7"></a>)</span>
-<span id="cb10-8"><a href="#cb10-8"></a></span>
-<span id="cb10-9"><a href="#cb10-9"></a>ngm_vacc_fairfield</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>ngm_vacc_fairfield <span class="ot">&lt;-</span> <span class="fu">apply_vaccination</span>(</span>
+<span id="cb11-2"><a href="#cb11-2"></a>  <span class="at">ngm =</span> ngm_fairfield,</span>
+<span id="cb11-3"><a href="#cb11-3"></a>  <span class="at">data =</span> vaccination_effect_example_data,</span>
+<span id="cb11-4"><a href="#cb11-4"></a>  <span class="at">coverage_col =</span> coverage,</span>
+<span id="cb11-5"><a href="#cb11-5"></a>  <span class="at">acquisition_col =</span> acquisition,</span>
+<span id="cb11-6"><a href="#cb11-6"></a>  <span class="at">transmission_col =</span> transmission</span>
+<span id="cb11-7"><a href="#cb11-7"></a>)</span>
+<span id="cb11-8"><a href="#cb11-8"></a></span>
+<span id="cb11-9"><a href="#cb11-9"></a>ngm_vacc_fairfield</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<pre><code>── Vaccination Setting Matrices ──────────
+
+A list of matrices, each &lt;matrix&gt;
+containing the adjusted number of newly
+infected individuals for age groups.
+These numbers have been adjusted based on
+proposed vaccination rates in age groups
+
+• home: a 17x17 &lt;matrix&gt;
+• school: a 17x17 &lt;matrix&gt;
+• work: a 17x17 &lt;matrix&gt;
+• other: a 17x17 &lt;matrix&gt;
+• all: a 17x17 &lt;matrix&gt;
+ℹ Access each &lt;matrix&gt; with `x$name`
+ℹ e.g., `x$home`</code></pre>
 </section>
 <section id="how-does-the-model-work" class="slide level2">
 <h2>How does the model work?</h2>
@@ -722,46 +765,46 @@ each setting.
 </ul>
 <div class="columns">
 <div class="column" style="width:50%;">
-<div class="sourceCode" id="cb11"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a>model <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">bam</span>(</span>
-<span id="cb11-2"><a href="#cb11-2"></a>  contact <span class="sc">~</span> age_diagonal <span class="sc">+</span> </span>
-<span id="cb11-3"><a href="#cb11-3"></a>     age_offdiagonal <span class="sc">+</span> </span>
-<span id="cb11-4"><a href="#cb11-4"></a>     ... <span class="sc">+</span> </span>
-<span id="cb11-5"><a href="#cb11-5"></a>     school probability <span class="sc">+</span> </span>
-<span id="cb11-6"><a href="#cb11-6"></a>     work probability</span>
-<span id="cb11-7"><a href="#cb11-7"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a>model <span class="ot">&lt;-</span> mgcv<span class="sc">::</span><span class="fu">bam</span>(</span>
+<span id="cb13-2"><a href="#cb13-2"></a>  contact <span class="sc">~</span> age_diagonal <span class="sc">+</span> </span>
+<span id="cb13-3"><a href="#cb13-3"></a>     age_offdiagonal <span class="sc">+</span> </span>
+<span id="cb13-4"><a href="#cb13-4"></a>     ... <span class="sc">+</span> </span>
+<span id="cb13-5"><a href="#cb13-5"></a>     school probability <span class="sc">+</span> </span>
+<span id="cb13-6"><a href="#cb13-6"></a>     work probability</span>
+<span id="cb13-7"><a href="#cb13-7"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div><div class="column" style="width:50%;">
-<div class="sourceCode" id="cb12"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a>extrapolated <span class="ot">&lt;-</span> <span class="fu">predict</span>(</span>
-<span id="cb12-2"><a href="#cb12-2"></a>  <span class="at">data =</span> fairfield, </span>
-<span id="cb12-3"><a href="#cb12-3"></a>  <span class="at">model =</span> model</span>
-<span id="cb12-4"><a href="#cb12-4"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb14"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>extrapolated <span class="ot">&lt;-</span> <span class="fu">predict</span>(</span>
+<span id="cb14-2"><a href="#cb14-2"></a>  <span class="at">data =</span> fairfield, </span>
+<span id="cb14-3"><a href="#cb14-3"></a>  <span class="at">model =</span> model</span>
+<span id="cb14-4"><a href="#cb14-4"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </div>
 </section>
 <section id="how-does-the-model-work-really" class="slide level2">
 <h2>How does the model work (really)?</h2>
 <p>(simplified)</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a>mgcv<span class="sc">::</span><span class="fu">bam</span>(</span>
-<span id="cb13-2"><a href="#cb13-2"></a>  <span class="at">formula =</span> contacts <span class="sc">~</span></span>
-<span id="cb13-3"><a href="#cb13-3"></a>      <span class="co"># Prem method did a post-hoc smoothing</span></span>
-<span id="cb13-4"><a href="#cb13-4"></a>      <span class="co"># abs(age_from - age_to)</span></span>
-<span id="cb13-5"><a href="#cb13-5"></a>      <span class="fu">s</span>(gam_age_offdiag) <span class="sc">+</span></span>
-<span id="cb13-6"><a href="#cb13-6"></a>      <span class="co"># abs(age_from - age_to)^2</span></span>
-<span id="cb13-7"><a href="#cb13-7"></a>      <span class="fu">s</span>(gam_age_offdiag_2) <span class="sc">+</span></span>
-<span id="cb13-8"><a href="#cb13-8"></a>      <span class="co"># abs(age_from * age_to)</span></span>
-<span id="cb13-9"><a href="#cb13-9"></a>      <span class="fu">s</span>(gam_age_diag_prod) <span class="sc">+</span></span>
-<span id="cb13-10"><a href="#cb13-10"></a>      <span class="co"># abs(age_from + age_to)</span></span>
-<span id="cb13-11"><a href="#cb13-11"></a>      <span class="fu">s</span>(gam_age_diag_sum) <span class="sc">+</span></span>
-<span id="cb13-12"><a href="#cb13-12"></a>      <span class="co"># pmax(age_from, age_to)</span></span>
-<span id="cb13-13"><a href="#cb13-13"></a>      <span class="fu">s</span>(gam_age_pmax) <span class="sc">+</span></span>
-<span id="cb13-14"><a href="#cb13-14"></a>      <span class="co"># pmin(age_from, age_to)</span></span>
-<span id="cb13-15"><a href="#cb13-15"></a>      <span class="fu">s</span>(gam_age_pmin) <span class="sc">+</span></span>
-<span id="cb13-16"><a href="#cb13-16"></a>      school_probability <span class="sc">+</span></span>
-<span id="cb13-17"><a href="#cb13-17"></a>      work_probability,</span>
-<span id="cb13-18"><a href="#cb13-18"></a>    <span class="at">family =</span> stats<span class="sc">::</span>poisson,</span>
-<span id="cb13-19"><a href="#cb13-19"></a>    <span class="co"># </span><span class="al">NOTE</span><span class="co">: the offset of participants allows us to get the rate per person</span></span>
-<span id="cb13-20"><a href="#cb13-20"></a>    <span class="at">offset =</span> <span class="fu">log</span>(participants),</span>
-<span id="cb13-21"><a href="#cb13-21"></a>    <span class="at">data =</span> .</span>
-<span id="cb13-22"><a href="#cb13-22"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a>mgcv<span class="sc">::</span><span class="fu">bam</span>(</span>
+<span id="cb15-2"><a href="#cb15-2"></a>  <span class="at">formula =</span> contacts <span class="sc">~</span></span>
+<span id="cb15-3"><a href="#cb15-3"></a>      <span class="co"># Prem method did a post-hoc smoothing</span></span>
+<span id="cb15-4"><a href="#cb15-4"></a>      <span class="co"># abs(age_from - age_to)</span></span>
+<span id="cb15-5"><a href="#cb15-5"></a>      <span class="fu">s</span>(gam_age_offdiag) <span class="sc">+</span></span>
+<span id="cb15-6"><a href="#cb15-6"></a>      <span class="co"># abs(age_from - age_to)^2</span></span>
+<span id="cb15-7"><a href="#cb15-7"></a>      <span class="fu">s</span>(gam_age_offdiag_2) <span class="sc">+</span></span>
+<span id="cb15-8"><a href="#cb15-8"></a>      <span class="co"># abs(age_from * age_to)</span></span>
+<span id="cb15-9"><a href="#cb15-9"></a>      <span class="fu">s</span>(gam_age_diag_prod) <span class="sc">+</span></span>
+<span id="cb15-10"><a href="#cb15-10"></a>      <span class="co"># abs(age_from + age_to)</span></span>
+<span id="cb15-11"><a href="#cb15-11"></a>      <span class="fu">s</span>(gam_age_diag_sum) <span class="sc">+</span></span>
+<span id="cb15-12"><a href="#cb15-12"></a>      <span class="co"># pmax(age_from, age_to)</span></span>
+<span id="cb15-13"><a href="#cb15-13"></a>      <span class="fu">s</span>(gam_age_pmax) <span class="sc">+</span></span>
+<span id="cb15-14"><a href="#cb15-14"></a>      <span class="co"># pmin(age_from, age_to)</span></span>
+<span id="cb15-15"><a href="#cb15-15"></a>      <span class="fu">s</span>(gam_age_pmin) <span class="sc">+</span></span>
+<span id="cb15-16"><a href="#cb15-16"></a>      school_probability <span class="sc">+</span></span>
+<span id="cb15-17"><a href="#cb15-17"></a>      work_probability,</span>
+<span id="cb15-18"><a href="#cb15-18"></a>    <span class="at">family =</span> stats<span class="sc">::</span>poisson,</span>
+<span id="cb15-19"><a href="#cb15-19"></a>    <span class="co"># </span><span class="al">NOTE</span><span class="co">: the offset of participants allows us to get the rate per person</span></span>
+<span id="cb15-20"><a href="#cb15-20"></a>    <span class="at">offset =</span> <span class="fu">log</span>(participants),</span>
+<span id="cb15-21"><a href="#cb15-21"></a>    <span class="at">data =</span> .</span>
+<span id="cb15-22"><a href="#cb15-22"></a>    )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="how-does-the-model-work-really-really" class="slide level2">
 <h2>How does the model work (really really)?</h2>
