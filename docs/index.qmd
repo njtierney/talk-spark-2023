@@ -54,6 +54,7 @@ icon_twitter <- icon_style(icons_fa$brands$twitter, fill = "#f0a800")
 icon_globe <- icon_style(icons_fa$solid$globe, fill = "#f0a800")
 icon_box <- icon_style(icons_fa$solid$`box-open`, fill = "#f0a800")
 icon_link <- icon_style(icons_fa$solid$link, fill = "#f0a800")
+icon_bullhorn <- icon_style(icons_fa$solid$bullhorn, fill = "#f0a800")
 # icon_twitter <- icon_style(icons_fa$brands$twitter, fill = "#f0a800")
 icon_github <- icon_style(icons_fa$brands$github, fill = "#f0a800")
 icon_plane <- icon_style(icons_fa$solid$`paper-plane`, fill = "#f0a800")
@@ -241,7 +242,7 @@ synthetic_fairfield
     ℹ Access each <matrix> with `x$name`
     ℹ e.g., `x$home`
 
-## Predicted Contact matrix
+## Synthetic Contact matrix
 
 ```{r}
 #| label: plot-matrix-fairfield-home
@@ -293,7 +294,7 @@ autoplot(fairfield_ngm$home)
 - In a Suscepible, Infected, Recovered (SIR) model
 - For say, Germany?
 
-## ...Wait for it
+## ...Is it different to Prem?
 
 ```{r}
 #| label: build-SIR
@@ -519,7 +520,8 @@ conmat_static_plot +
 
 `r icon_box` [github.com/njtierney/conmat](https://github.com/njtierney/conmat)
 
-`r icon_link` [njtierney.github.io/talk-spark-2023](njtierney.github.io/talk-canterbury-2022)
+
+`r icon_bullhorn` [github.com/njtierney/talk-spark-2023](https://github.com/njtierney/talk-spark-2023)
 
 `r icon_globe` [njtierney.com](https://www.njtierney.com/)
 
