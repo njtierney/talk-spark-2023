@@ -18,7 +18,7 @@ age_structured_sir <- function(time, state, parameters) {
   # normalise by the age population
   N_infected_by_age <- state[parameters$i_indexes] / N_by_age
   
-  # functional method for takign the product of two matrices
+  # functional method for taking the product of two matrices
   product <- function(transmission, contact) {
     map2(transmission, contact, `*`)
   }
